@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import streamlit as st
+import streamlit.components.v1 as components
 import tempfile
 import os
 
@@ -17,7 +18,7 @@ st.markdown(
 # CONFIGURACIÓN
 # ============================================================
 
-N = 121  # reducido para que genere más rápido en la nube
+N = 301  # igual que el original
 
 t_circle = np.linspace(0, 2 * np.pi, N)
 t_cusp   = np.linspace(-1.2, 1.2, N)
@@ -34,113 +35,138 @@ cusp_y = s ** 2
 # FIGURA
 # ============================================================
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
+def build_fig_and_ani():
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
+    fig.subplots_adjust(bottom=0.28, top=0.82, wspace=0.25)
+    fig.suptitle("Comparación del vector derivada", fontsize=16, y=0.96)
 
-fig.subplots_adjust(bottom=0.28, top=0.82, wspace=0.25)
-fig.suptitle("Comparación del vector derivada", fontsize=16, y=0.96)
+    # Panel izquierdo
+    ax1.plot(circle_x, circle_y, linewidth=2.5)
+    point1,        = ax1.plot([], [], "o", markersize=9)
+    tangent_line1, = ax1.plot([], [], "--", linewidth=2)
+    vector1 = ax1.quiver([], [], [], [], angles="xy", scale_units="xy", scale=1, width=0.008)
 
-# Panel izquierdo
-ax1.plot(circle_x, circle_y, linewidth=2.5)
-point1,        = ax1.plot([], [], "o", markersize=9)
-tangent_line1, = ax1.plot([], [], "--", linewidth=2)
-vector1 = ax1.quiver([], [], [], [], angles="xy", scale_units="xy", scale=1, width=0.008)
+    ax1.set_title(r"Contraejemplo: $f(t)=(\cos t,\sin t)$", fontsize=13)
+    ax1.set_xlim(-1.7, 1.7)
+    ax1.set_ylim(-1.7, 1.7)
+    ax1.set_aspect("equal")
+    ax1.grid(True, alpha=0.4)
+    ax1.axhline(0, linewidth=0.8)
+    ax1.axvline(0, linewidth=0.8)
 
-ax1.set_title(r"Contraejemplo: $f(t)=(\cos t,\sin t)$", fontsize=13)
-ax1.set_xlim(-1.7, 1.7)
-ax1.set_ylim(-1.7, 1.7)
-ax1.set_aspect("equal")
-ax1.grid(True, alpha=0.4)
-ax1.axhline(0, linewidth=0.8)
-ax1.axvline(0, linewidth=0.8)
-
-info1 = ax1.text(
-    0.5, -0.18, "", transform=ax1.transAxes,
-    fontsize=11, ha="center", va="top",
-    bbox=dict(boxstyle="round", alpha=0.85)
-)
-
-# Panel derecho
-ax2.plot(cusp_x, cusp_y, linewidth=2.5)
-point2,        = ax2.plot([], [], "o", markersize=9)
-tangent_line2, = ax2.plot([], [], "--", linewidth=2)
-vector2 = ax2.quiver([], [], [], [], angles="xy", scale_units="xy", scale=1, width=0.008)
-
-ax2.set_title(r"Ejemplo: $g(t)=(t^3,t^2)$", fontsize=13)
-ax2.set_xlim(-2.0, 2.0)
-ax2.set_ylim(-0.3, 1.8)
-ax2.set_aspect("equal")
-ax2.grid(True, alpha=0.4)
-ax2.axhline(0, linewidth=0.8)
-ax2.axvline(0, linewidth=0.8)
-
-info2 = ax2.text(
-    0.5, -0.18, "", transform=ax2.transAxes,
-    fontsize=11, ha="center", va="top",
-    bbox=dict(boxstyle="round", alpha=0.85)
-)
-
-fig.text(
-    0.5, 0.04,
-    "Izquierda: la curva es cerrada y el vector tangente nunca es nulo. "
-    "Derecha: existe un punto donde el vector derivada es exactamente cero.",
-    ha="center", fontsize=11
-)
-
-# ============================================================
-# UPDATE
-# ============================================================
-
-def update(i):
-    # Circunferencia
-    t  = t_circle[i]
-    x  = np.cos(t);  y  = np.sin(t)
-    dx = -np.sin(t); dy = np.cos(t)
-
-    point1.set_data([x], [y])
-    vector1.set_offsets([[x, y]])
-    vector1.set_UVC([0.45 * dx], [0.45 * dy])
-
-    r = np.linspace(-0.7, 0.7, 100)
-    tangent_line1.set_data(x + r * dx, y + r * dy)
-    info1.set_text(
-        r"$f'(t)=(-\sin t,\cos t)$" + "\n"
-        r"$\|f'(t)\|=1$" + "\n"
-        r"$f'(t)\neq(0,0)$"
+    info1 = ax1.text(
+        0.5, -0.18, "", transform=ax1.transAxes,
+        fontsize=11, ha="center", va="top",
+        bbox=dict(boxstyle="round", alpha=0.85)
     )
 
-    # Cúspide
-    u  = t_cusp[i]
-    X  = u ** 3;  Y  = u ** 2
-    dX = 3 * u ** 2; dY = 2 * u
-    norm = np.sqrt(dX ** 2 + dY ** 2)
+    # Panel derecho
+    ax2.plot(cusp_x, cusp_y, linewidth=2.5)
+    point2,        = ax2.plot([], [], "o", markersize=9)
+    tangent_line2, = ax2.plot([], [], "--", linewidth=2)
+    vector2 = ax2.quiver([], [], [], [], angles="xy", scale_units="xy", scale=1, width=0.008)
 
-    point2.set_data([X], [Y])
+    ax2.set_title(r"Ejemplo: $g(t)=(t^3,t^2)$", fontsize=13)
+    ax2.set_xlim(-2.0, 2.0)
+    ax2.set_ylim(-0.3, 1.8)
+    ax2.set_aspect("equal")
+    ax2.grid(True, alpha=0.4)
+    ax2.axhline(0, linewidth=0.8)
+    ax2.axvline(0, linewidth=0.8)
 
-    if abs(u) < 1e-10:
-        vector2.set_offsets([[X, Y]])
-        vector2.set_UVC([0], [0])
-        tangent_line2.set_data([], [])
-        info2.set_text(r"$g'(0)=(0,0)$" + "\n" + r"$\|g'(0)\|=0$")
-    else:
-        vector2.set_offsets([[X, Y]])
-        vector2.set_UVC([0.35 * dX], [0.35 * dY])
-        r2 = np.linspace(-0.5, 0.5, 100)
-        ux = dX / norm; uy = dY / norm
-        tangent_line2.set_data(X + r2 * ux, Y + r2 * uy)
-        info2.set_text(
-            rf"$g'(t)=(3t^2,2t)$" + "\n"
-            rf"$\|g'(t)\|={norm:.2f}$"
+    info2 = ax2.text(
+        0.5, -0.18, "", transform=ax2.transAxes,
+        fontsize=11, ha="center", va="top",
+        bbox=dict(boxstyle="round", alpha=0.85)
+    )
+
+    fig.text(
+        0.5, 0.04,
+        "Izquierda: la curva es cerrada y el vector tangente nunca es nulo. "
+        "Derecha: existe un punto donde el vector derivada es exactamente cero.",
+        ha="center", fontsize=11
+    )
+
+    def update(i):
+        # Circunferencia
+        t  = t_circle[i]
+        x  = np.cos(t);  y  = np.sin(t)
+        dx = -np.sin(t); dy = np.cos(t)
+
+        point1.set_data([x], [y])
+        vector1.set_offsets([[x, y]])
+        vector1.set_UVC([0.45 * dx], [0.45 * dy])
+
+        r = np.linspace(-0.7, 0.7, 100)
+        tangent_line1.set_data(x + r * dx, y + r * dy)
+        info1.set_text(
+            r"$f'(t)=(-\sin t,\cos t)$" + "\n"
+            r"$\|f'(t)\|=1$" + "\n"
+            r"$f'(t)\neq(0,0)$"
         )
 
-    return point1, tangent_line1, vector1, point2, tangent_line2, vector2, info1, info2
+        # Cúspide
+        u  = t_cusp[i]
+        X  = u ** 3;  Y  = u ** 2
+        dX = 3 * u ** 2; dY = 2 * u
+        norm = np.sqrt(dX ** 2 + dY ** 2)
+
+        point2.set_data([X], [Y])
+
+        if abs(u) < 1e-10:
+            vector2.set_offsets([[X, Y]])
+            vector2.set_UVC([0], [0])
+            tangent_line2.set_data([], [])
+            info2.set_text(r"$g'(0)=(0,0)$" + "\n" + r"$\|g'(0)\|=0$")
+        else:
+            vector2.set_offsets([[X, Y]])
+            vector2.set_UVC([0.35 * dX], [0.35 * dY])
+            r2 = np.linspace(-0.5, 0.5, 100)
+            ux = dX / norm; uy = dY / norm
+            tangent_line2.set_data(X + r2 * ux, Y + r2 * uy)
+            info2.set_text(
+                rf"$g'(t)=(3t^2,2t)$" + "\n"
+                rf"$\|g'(t)\|={norm:.2f}$"
+            )
+
+        return point1, tangent_line1, vector1, point2, tangent_line2, vector2, info1, info2
+
+    ani = FuncAnimation(fig, update, frames=N, interval=40, blit=False)
+    return fig, ani
+
 
 # ============================================================
-# GENERAR Y MOSTRAR GIF (con caché para no regenerar cada vez)
+# SECCIÓN 1 — Animación interactiva con controles (jshtml)
 # ============================================================
+
+st.subheader("▶ Animación interactiva (con controles de reproducción)")
+st.caption("Usa los botones del reproductor para pausar, avanzar fotograma a fotograma o cambiar la velocidad.")
+
+@st.cache_resource(show_spinner=False)
+def generar_jshtml():
+    fig, ani = build_fig_and_ani()
+    html_str = ani.to_jshtml(fps=25, default_mode="loop")
+    plt.close(fig)
+    return html_str
+
+with st.spinner("Generando animación interactiva (solo la primera vez)…"):
+    jshtml = generar_jshtml()
+
+# Altura generosa para que quepan los controles del reproductor
+components.html(jshtml, height=600, scrolling=False)
+
+st.markdown("---")
+
+# ============================================================
+# SECCIÓN 2 — GIF en bucle (referencia visual rápida)
+# ============================================================
+
+st.subheader("🔁 GIF en bucle continuo")
+st.caption("Versión en GIF, se reproduce automáticamente sin necesidad de interacción.")
 
 @st.cache_resource(show_spinner=False)
 def generar_gif():
-    ani = FuncAnimation(fig, update, frames=N, interval=40, blit=False)
+    fig, ani = build_fig_and_ani()
     tmp = tempfile.NamedTemporaryFile(suffix=".gif", delete=False)
     ani.save(tmp.name, writer=PillowWriter(fps=25))
     plt.close(fig)
@@ -149,7 +175,7 @@ def generar_gif():
     os.unlink(tmp.name)
     return data
 
-with st.spinner("Generando animación (solo la primera vez)…"):
+with st.spinner("Generando GIF (solo la primera vez)…"):
     gif_bytes = generar_gif()
 
 st.image(gif_bytes, use_container_width=True)
