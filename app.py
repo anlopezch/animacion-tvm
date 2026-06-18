@@ -13,25 +13,13 @@ st.markdown(
     "**Derecha:** existe un punto donde el vector derivada es exactamente cero."
 )
 
-# ============================================================
-# PARÁMETROS
-# ============================================================
-
 N        = 301
 t_circle = np.linspace(0, 2 * np.pi, N)
 t_cusp   = np.linspace(-1.2, 1.2, N)
-
 theta    = np.linspace(0, 2 * np.pi, 600)
-circle_x = np.cos(theta)
-circle_y = np.sin(theta)
-
-s      = np.linspace(-1.2, 1.2, 600)
-cusp_x = s ** 3
-cusp_y = s ** 2
-
-# ============================================================
-# CONSTRUCCIÓN DE FIGURA + ANIMACIÓN
-# ============================================================
+circle_x = np.cos(theta);  circle_y = np.sin(theta)
+s        = np.linspace(-1.2, 1.2, 600)
+cusp_x   = s ** 3;          cusp_y   = s ** 2
 
 def build_ani():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 6))
@@ -72,7 +60,6 @@ def build_ani():
         tangent_line1.set_data(x + r*dx, y + r*dy)
         info1.set_text(r"$f'(t)=(-\sin t,\cos t)$" + "\n" +
                        r"$\|f'(t)\|=1$" + "\n" + r"$f'(t)\neq(0,0)$")
-
         u  = t_cusp[i]; X = u**3; Y = u**2
         dX = 3*u**2;    dY = 2*u
         norm = np.sqrt(dX**2 + dY**2)
@@ -87,19 +74,13 @@ def build_ani():
             ux = dX/norm; uy = dY/norm
             tangent_line2.set_data(X + r2*ux, Y + r2*uy)
             info2.set_text(rf"$g'(t)=(3t^2,2t)$" + "\n" + rf"$\|g'(t)\|={norm:.2f}$")
-
         return point1, tangent_line1, vector1, point2, tangent_line2, vector2, info1, info2
 
     ani = FuncAnimation(fig, update, frames=N, interval=40, blit=False)
     return fig, ani
 
-# ============================================================
-# GENERAR TODOS LOS FRAMES COMO PNG EN BASE64
-# ============================================================
-
 @st.cache_resource(show_spinner=False)
 def generar_frames_b64():
-    """Renderiza cada frame como PNG y lo guarda en base64."""
     fig, ani = build_ani()
     frames_b64 = []
     for i in range(N):
@@ -124,11 +105,11 @@ def generar_gif():
     return data
 
 # ============================================================
-# SECCIÓN 1 — REPRODUCTOR CUSTOM (sin CDN externo)
+# SECCIÓN 1 — REPRODUCTOR CUSTOM
 # ============================================================
 
 st.subheader("▶ Animación interactiva con controles")
-st.caption("Genera los frames en el servidor y los controla con JS puro — sin dependencias externas.")
+st.caption("Usa la barra de progreso para ir a cualquier punto, o los botones para saltar frames.")
 
 with st.spinner("Generando frames… (solo la primera vez, puede tardar ~30 s)"):
     frames = generar_frames_b64()
@@ -137,87 +118,181 @@ frames_json = "[" + ",".join(f'"{f}"' for f in frames) + "]"
 
 player_html = f"""
 <style>
-  body {{ margin: 0; background: #fff; font-family: sans-serif; }}
-  #wrap {{ text-align: center; padding: 8px; }}
-  #anim {{ max-width: 100%; border: 1px solid #ddd; border-radius: 6px; }}
-  .ctrl {{ margin-top: 8px; display: flex; align-items: center;
-           justify-content: center; gap: 10px; flex-wrap: wrap; }}
-  button {{ padding: 5px 14px; font-size: 14px; cursor: pointer;
-            border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }}
-  button:hover {{ background: #e0e0e0; }}
-  input[type=range] {{ width: 160px; }}
-  label {{ font-size: 13px; }}
-  #frameInfo {{ font-size: 12px; color: #555; margin-top: 4px; }}
-</style>
-<div id="wrap">
-  <img id="anim" src="" alt="frame"/>
-  <div class="ctrl">
-    <button id="btnPrev">⏮ −1</button>
-    <button id="btnPlay">⏸ Pausar</button>
-    <button id="btnNext">+1 ⏭</button>
-    <label>Velocidad:
-      <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1">
-    </label>
-    <span id="speedLabel">1.0×</span>
-  </div>
-  <div id="frameInfo">Frame: 0 / {N-1}</div>
-</div>
-<script>
-  const frames = {frames_json};
-  const N      = {N};
-  const BASE_INTERVAL = 40;   // ms — igual que el original
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ background: #fff; font-family: sans-serif; }}
+  #wrap {{ text-align: center; padding: 10px 14px 14px; }}
+  #anim {{
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    display: block;
+    margin: 0 auto;
+  }}
 
-  let idx      = 0;
-  let playing  = true;
-  let speed    = 1.0;
-  let timer    = null;
+  /* scrubber */
+  #scrubRow {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px auto 6px;
+    max-width: 98%;
+  }}
+  #scrubber {{
+    flex: 1;
+    height: 5px;
+    accent-color: #1976d2;
+    cursor: pointer;
+  }}
+  #timeLabel {{
+    font-size: 12px;
+    color: #555;
+    white-space: nowrap;
+    min-width: 90px;
+    text-align: right;
+  }}
+
+  /* botones */
+  .ctrl {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }}
+  button {{
+    padding: 6px 11px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid #bbb;
+    border-radius: 5px;
+    background: #f0f0f0;
+    transition: background .15s;
+  }}
+  button:hover {{ background: #ddd; }}
+  #btnPlay {{
+    min-width: 120px;
+    font-weight: 700;
+    background: #1976d2;
+    color: #fff;
+    border-color: #1565c0;
+  }}
+  #btnPlay:hover {{ background: #1565c0; }}
+
+  /* velocidad */
+  .speed-wrap {{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    margin-left: 4px;
+  }}
+  #speed {{ width: 100px; accent-color: #1976d2; cursor: pointer; }}
+  #speedLabel {{ min-width: 38px; }}
+</style>
+
+<div id="wrap">
+  <img id="anim" src="" alt="frame de la animación"/>
+
+  <!-- barra de progreso -->
+  <div id="scrubRow">
+    <input type="range" id="scrubber" min="0" max="{N-1}" value="0" step="1"
+           title="Arrastra para ir a cualquier frame">
+    <span id="timeLabel">Frame 0 / {N-1}</span>
+  </div>
+
+  <!-- controles -->
+  <div class="ctrl">
+    <button id="btnFirst"  title="Ir al primer frame">⏮</button>
+    <button id="btnBack10" title="Retroceder 10 frames">⏪ 10</button>
+    <button id="btnPrev"   title="Retroceder 1 frame">◀ 1</button>
+    <button id="btnPlay">⏸ Pausar</button>
+    <button id="btnNext"   title="Avanzar 1 frame">1 ▶</button>
+    <button id="btnFwd10"  title="Avanzar 10 frames">10 ⏩</button>
+    <button id="btnLast"   title="Ir al último frame">⏭</button>
+    <div class="speed-wrap">
+      <span>Velocidad:</span>
+      <input type="range" id="speed" min="0.25" max="4" step="0.25" value="1"
+             title="Ajusta la velocidad de reproducción">
+      <span id="speedLabel">1.00×</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const frames  = {frames_json};
+  const N       = {N};
+  const BASE_MS = 40;
+
+  let idx       = 0;
+  let playing   = true;
+  let speed     = 1.0;
+  let timer     = null;
+  let scrubbing = false;
 
   const img       = document.getElementById('anim');
+  const scrubber  = document.getElementById('scrubber');
+  const timeLabel = document.getElementById('timeLabel');
   const btnPlay   = document.getElementById('btnPlay');
   const btnPrev   = document.getElementById('btnPrev');
   const btnNext   = document.getElementById('btnNext');
+  const btnBack10 = document.getElementById('btnBack10');
+  const btnFwd10  = document.getElementById('btnFwd10');
+  const btnFirst  = document.getElementById('btnFirst');
+  const btnLast   = document.getElementById('btnLast');
   const speedSldr = document.getElementById('speed');
   const speedLbl  = document.getElementById('speedLabel');
-  const frameInfo = document.getElementById('frameInfo');
+
+  function clamp(v, lo, hi) {{ return Math.max(lo, Math.min(hi, v)); }}
 
   function showFrame(i) {{
-    img.src = 'data:image/png;base64,' + frames[i];
-    frameInfo.textContent = 'Frame: ' + i + ' / ' + (N - 1);
+    idx = ((i % N) + N) % N;          // wrap en ambas direcciones
+    img.src = 'data:image/png;base64,' + frames[idx];
+    scrubber.value = idx;
+    timeLabel.textContent = 'Frame ' + idx + ' / ' + (N - 1);
   }}
 
-  function step() {{
-    idx = (idx + 1) % N;
-    showFrame(idx);
-  }}
+  function step() {{ showFrame(idx + 1); }}
 
   function startTimer() {{
     if (timer) clearInterval(timer);
-    timer = setInterval(step, BASE_INTERVAL / speed);
+    timer = setInterval(step, BASE_MS / speed);
   }}
-
   function stopTimer() {{
     if (timer) {{ clearInterval(timer); timer = null; }}
   }}
 
+  // Play / Pausa
   btnPlay.onclick = () => {{
     playing = !playing;
     btnPlay.textContent = playing ? '⏸ Pausar' : '▶ Reanudar';
     playing ? startTimer() : stopTimer();
   }};
 
-  btnPrev.onclick = () => {{
-    idx = (idx - 1 + N) % N;
-    showFrame(idx);
-  }};
+  // Saltos de frame
+  btnPrev.onclick   = () => showFrame(idx - 1);
+  btnNext.onclick   = () => showFrame(idx + 1);
+  btnBack10.onclick = () => showFrame(idx - 10);
+  btnFwd10.onclick  = () => showFrame(idx + 10);
+  btnFirst.onclick  = () => showFrame(0);
+  btnLast.onclick   = () => showFrame(N - 1);
 
-  btnNext.onclick = () => {{
-    idx = (idx + 1) % N;
-    showFrame(idx);
-  }};
+  // Scrubber — pausa mientras se arrastra, reanuda al soltar
+  scrubber.addEventListener('mousedown',  () => {{ scrubbing = true;  if (playing) stopTimer(); }});
+  scrubber.addEventListener('touchstart', () => {{ scrubbing = true;  if (playing) stopTimer(); }}, {{passive:true}});
+  scrubber.addEventListener('input',      () => showFrame(parseInt(scrubber.value)));
+  function endScrub() {{
+    if (!scrubbing) return;
+    scrubbing = false;
+    if (playing) startTimer();
+  }}
+  scrubber.addEventListener('mouseup',  endScrub);
+  scrubber.addEventListener('touchend', endScrub);
 
+  // Velocidad
   speedSldr.oninput = () => {{
     speed = parseFloat(speedSldr.value);
-    speedLbl.textContent = speed.toFixed(2) + '×';
+    speedLbl.textContent = speed.toFixed(2) + '\u00d7';
     if (playing) startTimer();
   }};
 
