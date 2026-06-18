@@ -227,7 +227,7 @@ player_html = f"""
 </script>
 """
 
-components.html(player_html, height=560, scrolling=False)
+components.html(player_html, height=700, scrolling=False)
 
 st.markdown("---")
 
